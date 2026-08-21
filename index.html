@@ -317,6 +317,20 @@ body {
 .book-cover { height: 120px; display: grid; place-items: center; font-size: 56px; background: linear-gradient(120deg,var(--pink-100),var(--pink-200)); }
 .book-name { font-weight: 800; color: var(--pink-600); padding: 10px 12px 12px; font-size: 17px; }
 /* 绘本「今日新」标记 */
+.book-featured {
+  display: flex; align-items: center; gap: 16px;
+  max-width: 360px; margin: 0 auto 18px;
+  background: var(--card); border: 3px solid var(--pink-300); border-radius: 18px;
+  padding: 14px 16px; box-shadow: var(--shadow); cursor: pointer; position: relative;
+}
+.book-featured .book-cover { width: 96px; height: 96px; flex: 0 0 96px; border-radius: 12px; font-size: 52px; }
+.book-featured .book-featured-info { flex: 1 1 auto; }
+.book-featured .book-featured-title { font-weight: 800; color: var(--purple); font-size: 19px; line-height: 1.3; }
+.book-featured .book-featured-desc { color: var(--ink-soft); font-size: 13px; margin-top: 6px; }
+.book-featured .book-new-badge,
+.book-featured .book-read-badge { position: absolute; top: 10px; }
+.book-featured .book-new-badge { left: 10px; }
+.book-featured .book-read-badge { right: 10px; }
 .book-new-badge {
   position: absolute; top: 8px; right: 8px; z-index: 5;
   background: linear-gradient(135deg,#ff9ec4,#ff6fa5); color: #fff;
@@ -28774,7 +28788,7 @@ window.Modules = (function () {
     container.innerHTML = `
       <div class="module-title">📚 绘本馆</div>
       <div class="module-sub">挑一本绘本，一页页读，读完最后一页绘本右上角会出现绿色对钩 ✓，可以反复再读哦！</div>
-      <div class="card" id="featured" style="cursor:pointer;position:relative"></div>
+      <div class="book-featured" id="featured"></div>
       <div class="book-grid" id="bookGrid"></div>
       <div id="reader"></div>`;
     const grid = container.querySelector("#bookGrid");
@@ -28799,10 +28813,13 @@ window.Modules = (function () {
       const dailyBooks = S.getDailyBooks();
       const dailySet = new Set(dailyBooks.map((b) => b.title));
       const featured = dailyBooks[0] || D.BOOKS[0];
-      feat.innerHTML = `<div style="font-weight:800;color:var(--pink-600);margin-bottom:6px">⭐ 今日新绘本</div>
-        <div style="display:flex;align-items:center;gap:16px"><div class="book-cover" style="width:96px;flex:0 0 96px">${esc(featured.cover)}</div>
-        <div style="font-weight:800;font-size:20px;color:var(--purple)">${esc(featured.title)}</div></div>
-        <span class="book-new-badge" style="position:absolute;top:10px;left:10px" title="今日新绘本">新</span>`
+      feat.className = "book-featured";
+      feat.innerHTML = `<div class="book-cover">${esc(featured.cover)}</div>
+        <div class="book-featured-info">
+          <div class="book-featured-title">${esc(featured.title)}</div>
+          <div class="book-featured-desc">⭐ 今日新绘本，点我读一读~</div>
+        </div>
+        <span class="book-new-badge" title="今日新绘本">新</span>`
         + (S.isBookRead(featured.title) ? '<span class="book-read-badge" title="这本已经读过啦">✓</span>' : "");
       feat.onclick = () => openBook(featured);
       grid.innerHTML = "";
