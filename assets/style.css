@@ -518,6 +518,10 @@ body {
 .why-card { background:#fff; }
 .why-q { font-size:19px; font-weight:800; color:var(--purple); margin-bottom:6px; }
 .why-a { font-size:16px; line-height:1.7; color:var(--ink); margin-bottom:10px; }
+.why-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 12px; flex-wrap:wrap; }
+.why-count { font-size:13px; color:var(--ink-soft); }
+.why-shuffle { background:var(--purple); color:#fff; border:none; font-weight:700; }
+.why-shuffle:hover { filter:brightness(1.06); transform:translateY(-1px); }
 /* 分解法 */
 .decomp-example { background:var(--pink-50); border-radius:14px; padding:12px; line-height:2; font-size:16px; margin-bottom:8px; }
 .decomp-steps { margin:8px 0; }

@@ -2609,22 +2609,58 @@ window.Modules = (function () {
      十万个为什么
      ========================================================= */
   function whys(container) {
-    const list = S.dailyPickN(D.WHYS, 5);
+    const WHY_DAILY_N = 6;
+    const WHY_SEED = 0x7a3c91e5;
+    // 按种子对全池洗牌（与 draw 模块同款），保证同天稳定、跨天不同
+    function seededShuffle(arr, seed) {
+      const rnd = S.seededRand(seed >>> 0);
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        const t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+    // 每日 6 条：当天种子洗牌取前 6，分散且不重叠
+    let whyToday = seededShuffle(D.WHYS, (S.todaySeed() ^ WHY_SEED) >>> 0).slice(0, WHY_DAILY_N);
+    const shownQ = new Set(whyToday.map((w) => w.q)); // 换一换时排除已展示项，避免重复
+    function renderWhys() {
+      const box = container.querySelector("#whyList");
+      if (!box) return;
+      box.innerHTML = "";
+      whyToday.forEach((w) => {
+        const card = document.createElement("div");
+        card.className = "card why-card";
+        card.innerHTML = `
+          <div class="why-q">❓ ${esc(w.q)}</div>
+          <div class="why-a">${esc(w.a)}</div>
+          <button class="btn btn-sm why-read">🔊 读给我听</button>`;
+        card.querySelector(".why-read").addEventListener("click", () => A.speak(w.q + "。" + w.a, "zh-CN"));
+        box.appendChild(card);
+      });
+      const cnt = container.querySelector("#whyCount");
+      if (cnt) cnt.textContent = "今天挑了 " + whyToday.length + " 个（题库共 " + D.WHYS.length + " 个）";
+    }
+    // 换一换：从全池排除已展示项取 6 条，池子用尽再重置，保证每次都更新且不重复
+    function shuffleWhys() {
+      let cand = D.WHYS.filter((w) => !shownQ.has(w.q));
+      if (cand.length < WHY_DAILY_N) { shownQ.clear(); cand = D.WHYS.slice(); }
+      for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = cand[i]; cand[i] = cand[j]; cand[j] = t; }
+      const next = cand.slice(0, WHY_DAILY_N);
+      next.forEach((w) => shownQ.add(w.q));
+      whyToday = next;
+      renderWhys();
+    }
     container.innerHTML = `
       <div class="module-title">💡 十万个为什么</div>
-      <div class="module-sub">今天有 <b>5 个</b>有趣的小问题，点 🔊 听一听答案吧～</div>
+      <div class="module-sub">点 🔊 听一听答案；想看别的就点「换一换」，每次都不重复～</div>
+      <div class="why-head">
+        <span class="why-count" id="whyCount"></span>
+        <button class="btn btn-sm why-shuffle" id="whyShuffle">🔄 换一换</button>
+      </div>
       <div id="whyList"></div>`;
-    const box = container.querySelector("#whyList");
-    list.forEach((w) => {
-      const card = document.createElement("div");
-      card.className = "card why-card";
-      card.innerHTML = `
-        <div class="why-q">❓ ${esc(w.q)}</div>
-        <div class="why-a">${esc(w.a)}</div>
-        <button class="btn btn-sm why-read">🔊 读给我听</button>`;
-      card.querySelector(".why-read").addEventListener("click", () => A.speak(w.q + "。" + w.a, "zh-CN"));
-      box.appendChild(card);
-    });
+    container.querySelector("#whyShuffle").addEventListener("click", shuffleWhys);
+    renderWhys();
   }
 
   return {
