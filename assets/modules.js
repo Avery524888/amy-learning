@@ -2141,21 +2141,40 @@ window.Modules = (function () {
      14) 绘画
      ========================================================= */
   function draw(container) {
-    let refsToday = S.dailyPickN(D.DRAW_PROMPTS, 5);
+    // 每日范画：基于当天种子对整个主题池做洗牌，取前 N 个，保证每天分散且不重复
+    // （原 dailyPickN 用连续索引，会导致相邻两天 4/5 重叠；改用洗牌后每天都真正不一样）
+    const REF_DAILY_N = 6;
+    function seededShuffle(arr, seed) {
+      const rnd = S.seededRand(seed >>> 0);
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        const t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+    let refsToday = seededShuffle(D.DRAW_PROMPTS, (S.todaySeed() ^ 0x51ed270b) >>> 0).slice(0, REF_DAILY_N);
     let activeRef = refsToday[0];
     const usedRefNames = refsToday.map((p) => p.name); // 已展示过的范画，换一换时排除，避免立刻重复
     // 每日场景参考：按天轮换一幅“多元素、故事性强”的整幅画，供孩子照着学习
     const scenesAll = (D.DRAW_SCENES && D.DRAW_SCENES.length) ? D.DRAW_SCENES : [];
     let sceneIdx = scenesAll.length ? S.dailyIndex(scenesAll.length) : 0;
     // 渲染“范画”画廊（可换一换切换，且与当前展示的范画不重复）
+    function setActiveTip(p) {
+      const t = container.querySelector("#activeRefTip");
+      if (t) t.textContent = (p && p.step) ? ("💡 小提示：" + p.step) : "";
+    }
     function renderRefs() {
       const gal = container.querySelector("#drawRefGallery");
       if (!gal) return;
       gal.innerHTML = refsToday.map((p, i) => {
-        const svg = (D.DRAW_REFS && D.DRAW_REFS[p.name]) || `<div style="font-size:46px">${esc(p.emoji)}</div>`;
+        const hasSvg = D.DRAW_REFS && D.DRAW_REFS[p.name];
+        const svg = hasSvg ? D.DRAW_REFS[p.name] : `<div style="font-size:46px">${esc(p.emoji)}</div>`;
+        const badge = (p.cat) ? `<div class="draw-ref-cat">${esc(p.cat)}</div>` : "";
         return `<div class="draw-ref-card${i === 0 ? " on" : ""}" data-name="${esc(p.name)}" title="点一下选这个范画">
             <div class="draw-ref-svg">${svg}</div>
-            <div class="draw-ref-name">${esc(p.name)}</div>
+            <div class="draw-ref-name">${esc(p.name)} ${esc(p.emoji)}</div>
+            ${badge}
           </div>`;
       }).join("");
       const rn = container.querySelector("#refNames");
@@ -2163,13 +2182,14 @@ window.Modules = (function () {
       activeRef = refsToday[0];
       const lab = container.querySelector("#activeRefName");
       if (lab) lab.textContent = activeRef.name + " " + activeRef.emoji;
+      setActiveTip(activeRef);
       gal.querySelectorAll(".draw-ref-card").forEach((card) => {
         card.addEventListener("click", () => {
           gal.querySelectorAll(".draw-ref-card").forEach((n) => n.classList.remove("on"));
           card.classList.add("on");
           const nm = card.dataset.name;
           const found = refsToday.find((p) => p.name === nm);
-          if (found) { activeRef = found; const l = container.querySelector("#activeRefName"); if (l) l.textContent = found.name + " " + found.emoji; }
+          if (found) { activeRef = found; const l = container.querySelector("#activeRefName"); if (l) l.textContent = found.name + " " + found.emoji; setActiveTip(found); }
         });
       });
     }
@@ -2238,10 +2258,11 @@ window.Modules = (function () {
     }
     container.innerHTML = `
       <div class="module-title">🎨 绘画小天地</div>
-      <div class="module-sub">🎨 今天有 <b style="color:var(--pink-600)">5 个范画</b> 可以挑着画：<span id="refNames"></span>。点左边的图选一个，在右边画出来，画完点「完成」！（今天已画 <b id="drawCount" style="color:var(--pink-600)">0</b>/5 副）</div>
+      <div class="module-sub">🎨 今天为你准备了 <b style="color:var(--pink-600)">${REF_DAILY_N} 个范画</b> 灵感：<span id="refNames"></span>。点左边的图选一个，在右边画出来，画完点「完成」！（点「换一换」还有好多好多哦～ 今天已画 <b id="drawCount" style="color:var(--pink-600)">0</b>/6 副）</div>
       <div id="sceneWrap"></div>
       <div class="draw-top">
         <div class="draw-prompt">正在画：<b id="activeRefName" style="color:var(--pink-600);font-size:18px">${esc(activeRef.name)} ${activeRef.emoji}</b></div>
+        <div class="draw-ref-tip-big" id="activeRefTip"></div>
         <div class="draw-tools">
           <div class="tool-row">
             <button class="btn btn-sm tool-btn on" data-tool="brush">🖌️ 画笔</button>
@@ -2383,7 +2404,7 @@ window.Modules = (function () {
       const el = container.querySelector("#drawCount");
       if (!el) return;
       const n = S.getDrawings().filter((d) => d.date === S.todayStr()).length;
-      el.textContent = Math.min(n, 5);
+      el.textContent = Math.min(n, 6);
     }
     updateDrawCount();
 
@@ -2391,8 +2412,8 @@ window.Modules = (function () {
       if (!ctx) { window.App && window.App.toast("当前浏览器不支持画板，换 Chrome/Edge 试试～"); return; }
       // 每日最多 5 副，超过则提示并不保存
       const todayCount = S.getDrawings().filter((d) => d.date === S.todayStr()).length;
-      if (todayCount >= 5) {
-        window.App && window.App.toast("每天最多只能画5副哦！快去学学习其他内容吧！");
+      if (todayCount >= 6) {
+        window.App && window.App.toast("每天最多只能画6副哦！快去学学习其他内容吧！");
         return;
       }
       const cov = coverage();
