@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 安全策略：仅加载同源资源与 HTTPS 接口（AI 对话需要），禁止内联脚本与外部脚本注入 -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' https:; object-src 'none'; base-uri 'self';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#ff8fb3" />
+  <title>艾米的学习乐园</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <!-- ===== 顶部栏 ===== -->
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" aria-label="打开菜单">☰</button>
+    <div class="brand">
+      <span class="brand-logo">🌸</span>
+      <span class="brand-name" id="brandName">艾米的学习乐园</span>
+    </div>
+
+    <div class="top-date" id="topDate">--</div>
+
+    <div class="top-stats">
+      <div class="stat" title="累计获得的小红花总数">
+        <span class="stat-ico">🌺</span>
+        <span class="stat-num" id="topTotal">0</span>
+        <span class="stat-label">总积分</span>
+      </div>
+      <div class="stat" title="今天获得的小红花">
+        <span class="stat-ico">✨</span>
+        <span class="stat-num" id="topToday">0</span>
+        <span class="stat-label">今日</span>
+      </div>
+      <div class="stat" title="累计打卡天数">
+        <span class="stat-ico">📅</span>
+        <span class="stat-num" id="topDays">第0天</span>
+        <span class="stat-label">打卡</span>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="encourage" id="encourage">加油，你最棒！</div>
+      <button class="settings-btn" id="settingsBtn" title="AI 对话设置">⚙️</button>
+      <div class="user-chip" id="userChip" title="点击修改名字和头像">
+        <span class="user-avatar" id="topAvatar">🐰</span>
+        <span class="user-name" id="topName">艾米</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== 节日提醒横幅（有节日时显示） ===== -->
+  <div class="festival-banner" id="festivalBanner" hidden></div>
+
+  <!-- ===== 主体：左侧栏 + 内容区 ===== -->
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="学习类目">
+      <div class="sidebar-title">学习类目</div>
+      <ul class="nav-list" id="navList"><!-- 由 app.js 渲染 --></ul>
+      <div class="sidebar-foot">🌟 每天进步一点点 🌟</div>
+    </nav>
+
+    <main class="content" id="content" tabindex="-1"><!-- 由各模块渲染 --></main>
+  </div>
+
+  <!-- 移动端遮罩 -->
+  <div class="scrim" id="scrim" hidden></div>
+
+  <!-- ===== 用户编辑弹窗 ===== -->
+  <div class="modal-mask" id="userModal" hidden>
+    <div class="modal-card">
+      <div class="modal-title">✏️ 我的小名片</div>
+      <label class="field-label">我的名字</label>
+      <input class="text-input" id="nameInput" maxlength="8" placeholder="请输入名字" />
+      <label class="field-label">选一个头像</label>
+      <div class="avatar-grid" id="avatarGrid"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="userCancel">取消</button>
+        <button class="btn btn-primary" id="userSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== AI 设置弹窗 ===== -->
+  <div class="modal-mask" id="settingsModal" hidden>
+    <div class="modal-card">
+      <div class="modal-title">⚙️ AI / 发音设置</div>
+      <p class="modal-tip">配置后，英语「对话练习」会调用真实 AI 用英文鼓励宝宝。未配置则使用内置回答。密钥仅保存在本机浏览器。</p>
+      <label class="field-label">接口地址 (Base URL)</label>
+      <input class="text-input" id="aiBase" placeholder="https://api.xxx.com/v1" />
+      <label class="field-label">API Key</label>
+      <input class="text-input" id="aiKey" type="password" placeholder="sk-..." />
+      <label class="field-label">模型名称</label>
+      <input class="text-input" id="aiModel" placeholder="gpt-4o-mini" />
+      <hr class="modal-sep" />
+      <p class="modal-tip">「豆包云端发音」需自备后端（详见说明）：填上你运行的 <b>TTS 后端地址</b>（如 http://localhost:3001/tts），汉字/绘本/诗词会用「奶芙波波」、英语用「Olivia」朗读；留空则用本机声音。</p>
+      <label class="field-label">TTS 后端地址</label>
+      <input class="text-input" id="ttsUrl" placeholder="http://localhost:3001/tts" />
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="aiCancel">取消</button>
+        <button class="btn btn-ghost" id="aiClear">清除</button>
+        <button class="btn btn-primary" id="aiSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 通用提示弹窗（领取/确认） ===== -->
+  <div class="modal-mask" id="toastModal" hidden>
+    <div class="toast-card" id="toastCard"></div>
+  </div>
+
+  <!-- ===== 轻提示 ===== -->
+  <div class="snackbar" id="snackbar" hidden></div>
+
+  <!-- 拼音引擎（ESM 模块，挂载到 window.pinyinPro） -->
+  <script type="module" src="assets/pinyin_init.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/en_words_data.js"></script>
+  <script src="assets/books_data.js"></script>
+  <script src="assets/stories_data.js"></script>
+  <script src="assets/poems_data.js"></script>
+  <script src="assets/poem_notes.js"></script>
+  <script src="assets/store.js"></script>
+  <script src="assets/audio.js"></script>
+  <script src="assets/chinaMapData.js"></script>
+  <script src="assets/modules.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

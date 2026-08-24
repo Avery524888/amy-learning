@@ -1,0 +1,66 @@
+# 艾米学习乐园-定时恢复线上地址 — 执行记录
+
+- 2026-08-13 18:48 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-13 20:45 重推返回 400（沙箱已存在、线上已在线），无需重建，静默结束。
+- 2026-08-13 22:42 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 00:39 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 02:36 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 04:33 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 06:30 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 08:22 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 10:14 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 12:10 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 14:08 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-14 17:30 例行重推：本次会话未加载 workbuddy_cloudstudio_deploy 工具（环境缺该能力），无法主动重推；但 curl 探测线上地址返回 200，线路健康，视为已恢复，静默结束。
+- 2026-08-14 19:28 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-17 21:21 例行重推：本次会话未加载 workbuddy_cloudstudio_deploy 工具（环境缺该能力），无法主动重推；但 curl 探测线上地址返回 200（1.4s），线路健康，视为已恢复，静默结束。
+- 2026-08-17 23:17 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 01:14 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 03:11 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 05:07 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 07:05 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 08:59 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 10:56 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 12:53 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 14:50 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 16:47 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 18:43 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 20:40 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-18 22:37 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 00:33 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 02:30 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 04:28 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 06:24 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 08:16 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 10:08 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 13:48 例行重推：本次会话未加载 workbuddy_cloudstudio_deploy 工具（环境缺该能力），无法主动重推；但 curl 探测线上地址返回 200（2.36s），线路健康，视为已恢复，静默结束。
+- 2026-08-19 15:44 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 17:41 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 19:38 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 21:34 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-19 23:31 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 01:28 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，_deploy 保持 08-19 版本未覆盖）。
+- 2026-08-20 03:25 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 05:22 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 07:18 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 09:13 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 11:10 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 13:07 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 15:03 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 17:00 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 18:57 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 20:54 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-20 22:50 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 00:47 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 02:44 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 04:41 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 08:29 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 10:20 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，未覆盖 _deploy）。
+- 2026-08-21 12:18 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-21 14:15 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，未覆盖 _deploy）。
+- 2026-08-21 16:11 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，未覆盖 _deploy）。
+- 2026-08-21 18:09 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，未覆盖 _deploy）。
+- 2026-08-21 23:57 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-22 08:10 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复（本地 standalone.html 较旧，未覆盖 _deploy）。
+- 2026-08-24 15:57 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
+- 2026-08-24 17:54 重推 _deploy 成功，verified=true，沙箱 cdc4f… 线上地址已恢复。
