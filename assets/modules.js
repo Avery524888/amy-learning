@@ -380,12 +380,13 @@ window.Modules = (function () {
      2) 识字
      ========================================================= */
   function shizi(container) {
-    const story = D.STORIES[S.dailyIndex(D.STORIES.length)];
+    // 当天默认 1 篇故事（S.getDailyStory 按天轮换）；「换一换」切换今天还没看过的故事
+    function render(story) {
     container.innerHTML = `
       <div class="module-title">📖 识字小故事</div>
       <div class="module-sub">今天是《${esc(story.title)}》。每个字都能点读；双击或长按任意汉字，就能加入词库哦（黄色的是今天的新字）！</div>
       <div class="card">
-        <div style="font-weight:800;color:var(--pink-600);margin-bottom:6px">📚 ${esc(story.title)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--pink-600);margin-bottom:6px"><span>📚 ${esc(story.title)}</span><button class="btn btn-ghost btn-sm" id="storyShuffle" title="换一篇没看过的故事">🔄 换一换</button></div>
         <div class="story-text" id="storyText"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
           <button class="btn btn-sm" id="storyRead">🔊 朗读全文</button>
@@ -493,6 +494,15 @@ window.Modules = (function () {
       rightCol.appendChild(it);
     });
     matchWrap.appendChild(leftCol); matchWrap.appendChild(rightCol);
+
+    // 换一换：切换到今天还没看过的故事（当天记录持久化，刷新后保持）
+    const shuffleBtn = container.querySelector("#storyShuffle");
+    if (shuffleBtn) shuffleBtn.addEventListener("click", () => {
+      const s = S.shuffleStory();
+      if (s) { render(s); window.App && window.App.toast("换了一篇新故事～"); }
+    });
+  }
+  render(S.getDailyStory() || (D.STORIES && D.STORIES[0]) || { title: "", text: "", newChars: [] });
   }
 
   /* =========================================================
@@ -1081,13 +1091,19 @@ window.Modules = (function () {
   function book(container) {
     container.innerHTML = `
       <div class="module-title">📚 绘本馆</div>
-      <div class="module-sub">挑一本绘本，一页页读，读完最后一页绘本右上角会出现绿色对钩 ✓，可以反复再读哦！</div>
+      <div class="module-sub">挑一本绘本，一页页读，读完最后一页绘本右上角会出现绿色对钩 ✓，可以反复再读哦！每天都会更新 5 本新绘本～</div>
       <div class="book-featured" id="featured"></div>
       <div class="book-grid" id="bookGrid"></div>
+      <div id="moreWrap" style="text-align:center;margin:14px 0 4px"><button class="btn" id="moreBtn">📚 加载更多绘本</button></div>
       <div id="reader"></div>`;
     const grid = container.querySelector("#bookGrid");
     const reader = container.querySelector("#reader");
     const feat = container.querySelector("#featured");
+    const moreWrap = container.querySelector("#moreWrap");
+    const moreBtn = container.querySelector("#moreBtn");
+    // 全库 3000+ 本，分批渲染避免卡顿
+    let shown = 60;
+    const BATCH = 60;
 
     function renderBookCard(b, isNew) {
       const card = document.createElement("div");
@@ -1108,6 +1124,7 @@ window.Modules = (function () {
       const dailySet = new Set(dailyBooks.map((b) => b.title));
       const featured = dailyBooks[0] || D.BOOKS[0];
       feat.className = "book-featured";
+      feat.dataset.title = featured.title;
       feat.innerHTML = `<div class="book-cover">${esc(featured.cover)}</div>
         <div class="book-featured-info">
           <div class="book-featured-title">${esc(featured.title)}</div>
@@ -1131,7 +1148,19 @@ window.Modules = (function () {
         const rb = (b.title in readTs) ? readTs[b.title] : -1;
         return rb - ra;
       });
-      rest.forEach((b) => renderBookCard(b, false));
+      // 分批：先渲染已加载的部分，避免一次渲染 3000 张卡片卡顿
+      rest.slice(0, shown).forEach((b) => renderBookCard(b, false));
+      if (rest.length > shown) {
+        moreWrap.style.display = "";
+      } else {
+        moreWrap.style.display = "none";
+      }
+      moreBtn.onclick = () => {
+        const start = shown;
+        shown = Math.min(rest.length, shown + BATCH);
+        rest.slice(start, shown).forEach((b) => renderBookCard(b, false));
+        if (shown >= rest.length) moreWrap.style.display = "none";
+      };
     }
 
     function openBook(b) {
@@ -1170,8 +1199,18 @@ window.Modules = (function () {
             });
           });
         }
-        // 读完最后一页才标记已读（右上角绿色对钩），并刷新卡片对钩
-        if (last) { S.markBookRead(b.title); renderList(); }
+        // 读完最后一页才标记已读（右上角绿色对钩），只更新对钩、不重建整个列表
+        if (last) {
+          S.markBookRead(b.title);
+          grid.querySelectorAll(".book-card").forEach((c) => {
+            if (c.dataset.title === b.title && !c.querySelector(".book-read-badge")) {
+              c.insertAdjacentHTML("beforeend", '<span class="book-read-badge" title="这本已经读过啦">✓</span>');
+            }
+          });
+          if (feat.dataset.title === b.title && !feat.querySelector(".book-read-badge")) {
+            feat.insertAdjacentHTML("beforeend", '<span class="book-read-badge" title="这本已经读过啦">✓</span>');
+          }
+        }
       }
       render();
       if (reader.scrollIntoView) reader.scrollIntoView({ behavior: "smooth" });

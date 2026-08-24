@@ -431,6 +431,48 @@ window.Store = (function () {
     return ((n % len) + len) % len;
   }
 
+  /* ---------- 每日识字故事（当天 1 篇 + 换一换不重复） ---------- */
+  // 当天默认取 dailyIndex 指向的一篇；换一换会在「今天看过的」之外随机换一篇，
+  // 记录在 state.dailySel.story[date]（持久化，刷新后保持今天的切换结果）。
+  function _storyUsed() {
+    const d = todayStr();
+    if (!state.dailySel) state.dailySel = {};
+    if (!state.dailySel.story) state.dailySel.story = {};
+    return state.dailySel.story[d];
+  }
+  function getDailyStory() {
+    const stories = (window.Data && window.Data.STORIES) || [];
+    if (!stories.length) return null;
+    const list = _storyUsed();
+    if (list && list.length) return stories[list[list.length - 1]];
+    const idx = dailyIndex(stories.length);
+    state.dailySel.story[todayStr()] = [idx];
+    save();
+    return stories[idx];
+  }
+  function shuffleStory() {
+    const stories = (window.Data && window.Data.STORIES) || [];
+    if (!stories.length) return null;
+    const d = todayStr();
+    const list = _storyUsed() || [];
+    const used = new Set(list);
+    const pool = [];
+    for (let i = 0; i < stories.length; i++) if (!used.has(i)) pool.push(i);
+    let idx;
+    if (pool.length) {
+      idx = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      // 今天全部看完了：重置当天记录，回到按天轮换的那一篇
+      idx = dailyIndex(stories.length);
+      state.dailySel.story[d] = [idx];
+      save();
+      return stories[idx];
+    }
+    state.dailySel.story[d] = list.concat(idx);
+    save();
+    return stories[idx];
+  }
+
   return {
     esc: esc,
     onChange: onChange,
@@ -448,6 +490,7 @@ window.Store = (function () {
     getTTS: getTTS, setTTS: setTTS,
     dailyIndex: dailyIndex, todayStr: todayStr,
     todaySeed: todaySeed, dailyPick: dailyPick, dailyPickN: dailyPickN, seededRand: seededRand,
+    getDailyStory: getDailyStory, shuffleStory: shuffleStory,
     getPerf: getPerf, setPerf: setPerf, perfTotal: perfTotal,
     getDailyEN: getDailyEN, addDrawing: addDrawing, getDrawings: getDrawings, removeDrawing: removeDrawing,
     getDailyLogic: getDailyLogic, getDailyBook: getDailyBook, getDailyBooks: getDailyBooks
