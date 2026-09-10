@@ -93,9 +93,24 @@ window.Modules = (function () {
       <div class="cm-text">${label}</div>
       <div style="font-size:13px;color:#8a6a78">${esc(py || "")} ${esc(mean || "")}</div>
       <button class="btn btn-primary btn-sm" style="margin-top:8px">确定！</button>`;
-    m.style.left = Math.min(x, window.innerWidth - 240) + "px";
-    m.style.top = Math.min(y, window.innerHeight - 160) + "px";
+    // 先按点击位置放置，插入后再按实际尺寸夹紧，保证弹窗完整落在视口内（底部/右侧不会被截断）
+    m.style.left = Math.max(0, x) + "px";
+    m.style.top = Math.max(0, y) + "px";
     document.body.appendChild(m);
+    (function clampInViewport() {
+      const pad = 10;
+      const r = m.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const w = Math.min(r.width, vw - pad * 2);
+      const h = Math.min(r.height, vh - pad * 2);
+      let nx = r.left, ny = r.top;
+      nx = Math.min(nx, vw - w - pad);
+      ny = Math.min(ny, vh - h - pad);
+      nx = Math.max(pad, nx);
+      ny = Math.max(pad, ny);
+      m.style.left = nx + "px";
+      m.style.top = ny + "px";
+    })();
     m.querySelector("button").addEventListener("click", () => {
       let added;
       if (kind === "en") added = S.addEN(char, mean, "🔤");
@@ -379,17 +394,28 @@ window.Modules = (function () {
   /* =========================================================
      2) 识字
      ========================================================= */
+  // 识字模块：每天最多换 3 篇故事；朗读全文满 3 次给予鼓励
+  const SHIZI_SHUFFLE_MAX = 3;
+  const SHIZI_READ_TARGET = 3;
+
   function shizi(container) {
     // 当天默认 1 篇故事（S.getDailyStory 按天轮换）；「换一换」切换今天还没看过的故事
     function render(story) {
     container.innerHTML = `
       <div class="module-title">📖 识字小故事</div>
-      <div class="module-sub">今天是《${esc(story.title)}》。每个字都能点读；双击或长按任意汉字，就能加入词库哦（黄色的是今天的新字）！</div>
+      <div class="module-sub">今天是《${esc(story.title)}》。每个字都能点读；双击或长按任意汉字，就能加入词库哦（黄色的是今天的新字）！<br>每天可以换 <b style="color:var(--pink-600)">${SHIZI_SHUFFLE_MAX}</b> 篇新故事；把故事朗读 <b style="color:var(--pink-600)">${SHIZI_READ_TARGET}</b> 遍还有小惊喜～</div>
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--pink-600);margin-bottom:6px"><span>📚 ${esc(story.title)}</span><button class="btn btn-ghost btn-sm" id="storyShuffle" title="换一篇没看过的故事">🔄 换一换</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--pink-600);margin-bottom:6px;gap:10px;flex-wrap:wrap">
+          <span>📚 ${esc(story.title)}</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span id="shuffleLeft" style="font-size:13px;font-weight:700;color:#8a6a78"></span>
+            <button class="btn btn-ghost btn-sm" id="storyShuffle" title="换一篇没看过的故事">🔄 换一换</button>
+          </span>
+        </div>
         <div class="story-text" id="storyText"></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
           <button class="btn btn-sm" id="storyRead">🔊 朗读全文</button>
+          <span id="readCount" style="font-size:13px;font-weight:700;color:#8a6a78"></span>
         </div>
         <div id="storyReadArea"></div>
       </div>
@@ -442,7 +468,28 @@ window.Modules = (function () {
         if (added) storyText.querySelectorAll(".chr").forEach((sp) => { if (sp.dataset.ch === ch) sp.classList.add("done-added"); });
       });
     }
-    container.querySelector("#storyRead").addEventListener("click", () => A.speak(story.text, "zh-CN"));
+    // 朗读全文：记录当天朗读次数，达到 3 次提示「你好棒！朗读小能手」
+    function refreshReadState() {
+      const n = S.getDailyCount("shiziRead");
+      const cntEl = container.querySelector("#readCount");
+      if (cntEl) cntEl.textContent = `今天已朗读 ${Math.min(n, SHIZI_READ_TARGET)}/${SHIZI_READ_TARGET} 次`;
+      const area = container.querySelector("#storyReadArea");
+      if (area && n >= SHIZI_READ_TARGET) {
+        area.innerHTML = `<div class="feedback ok" style="margin-top:8px">你好棒！朗读小能手 🎉</div>`;
+      }
+    }
+    container.querySelector("#storyRead").addEventListener("click", () => {
+      A.speak(story.text, "zh-CN");
+      const n = S.bumpDailyCount("shiziRead");
+      refreshReadState();
+      if (n === SHIZI_READ_TARGET) window.App && window.App.toast("你好棒！朗读小能手");
+    });
+    refreshReadState();
+
+    // 换一换：每天最多 3 次（跨天自动重置）
+    const shuffleLeft = Math.max(0, SHIZI_SHUFFLE_MAX - S.getDailyCount("shiziShuffle"));
+    const shuffleLeftEl = container.querySelector("#shuffleLeft");
+    if (shuffleLeftEl) shuffleLeftEl.textContent = `今天还能换 ${shuffleLeft} 次`;
 
     // 自读
     let selfDone = false;
@@ -495,12 +542,28 @@ window.Modules = (function () {
     });
     matchWrap.appendChild(leftCol); matchWrap.appendChild(rightCol);
 
-    // 换一换：切换到今天还没看过的故事（当天记录持久化，刷新后保持）
+    // 换一换：切换到今天还没看过的故事（当天记录持久化，刷新后保持）；每天上限 3 次
     const shuffleBtn = container.querySelector("#storyShuffle");
-    if (shuffleBtn) shuffleBtn.addEventListener("click", () => {
-      const s = S.shuffleStory();
-      if (s) { render(s); window.App && window.App.toast("换了一篇新故事～"); }
-    });
+    if (shuffleBtn) {
+      if (shuffleLeft <= 0) {
+        shuffleBtn.disabled = true;
+        shuffleBtn.style.opacity = ".5";
+        shuffleBtn.style.cursor = "not-allowed";
+        shuffleBtn.title = `今天已经换过 ${SHIZI_SHUFFLE_MAX} 次啦，明天再来～`;
+      }
+      shuffleBtn.addEventListener("click", () => {
+        if (S.getDailyCount("shiziShuffle") >= SHIZI_SHUFFLE_MAX) {
+          window.App && window.App.toast(`今天已经换过 ${SHIZI_SHUFFLE_MAX} 次啦，明天再来～`);
+          return;
+        }
+        const s = S.shuffleStory();
+        if (s) {
+          S.bumpDailyCount("shiziShuffle");
+          render(s);
+          window.App && window.App.toast("换了一篇新故事～");
+        }
+      });
+    }
   }
   render(S.getDailyStory() || (D.STORIES && D.STORIES[0]) || { title: "", text: "", newChars: [] });
   }
@@ -536,42 +599,49 @@ window.Modules = (function () {
       const b = 1 + Math.floor(rnd() * maxB);        // 小数
       box.innerHTML = `
         <div style="font-weight:800;color:var(--pink-600)">🐱 十格法（10 以内加法）</div>
-        <div class="module-sub">格子里已经有 <b>${a}</b> 只小动物，点空格子再添一些小动物，然后算出一共有几只。</div>
+        <div class="module-sub">格子里已经有 <b>${a}</b> 只小动物。<b>每个格子都能点</b>：点一下出现一只 🐱，再点一下它就会消失～添一添、收一收，数一数现在一共有几只。</div>
         <div id="tf"></div>
-        <div style="margin:8px 0">已经添了 <b id="added">0</b> 只，一共 = ${a} + <span id="added2">0</span> = ?</div>
+        <div style="margin:8px 0">现在有 <b id="base">${a}</b> 只，添了 <b id="added">0</b> 只，一共 <b id="total">${a}</b> 只 = ?</div>
         <input class="text-input" id="ans" inputmode="numeric" placeholder="输入答案" style="max-width:160px;display:inline-block" />
         <button class="btn btn-sm" id="chk" style="margin-left:8px">✅ 确定</button>
         <div id="m1res"></div>`;
       const tf = box.querySelector("#tf");
       tf.innerHTML = tenFrame(a, 10);
       const cells = tf.querySelectorAll(".cell");
-      const addedEl = box.querySelector("#added"), addedEl2 = box.querySelector("#added2");
-      let added = 0;
-      const userFilled = new Set();
+      const baseEl = box.querySelector("#base");
+      const addedEl = box.querySelector("#added");
+      const totalEl = box.querySelector("#total");
+      // 所有格子都能点：点一下显示小猫咪，再点一下消失（题目自带的也能收起/放回）
+      let baseShown = a;   // 题目自带的、当前还显示着的只数
+      let added = 0;       // 在原本空格子里添上的只数
+      function syncCount() {
+        const total = baseShown + added;
+        if (baseEl) baseEl.textContent = baseShown;
+        if (addedEl) addedEl.textContent = added;
+        if (totalEl) totalEl.textContent = total;
+      }
       cells.forEach((cell, idx) => {
-        if (cell.classList.contains("filled")) return; // 题目已有的小动物不能取消
+        const isBase = cell.classList.contains("filled"); // 题目自带的格子
+        cell.title = "点一下出现小猫咪，再点一下收起来";
         cell.addEventListener("click", () => {
-          if (userFilled.has(idx)) {
-            userFilled.delete(idx);
-            cell.classList.remove("filled"); cell.textContent = "";
-            added--;
-          } else {
-            userFilled.add(idx);
-            cell.classList.add("filled"); cell.textContent = "🐱";
-            added++;
-          }
-          addedEl.textContent = added; addedEl2.textContent = added;
+          const on = !cell.classList.contains("filled");
+          cell.classList.toggle("filled", on);
+          cell.textContent = on ? "🐱" : "";
+          if (isBase) baseShown += on ? 1 : -1;
+          else added += on ? 1 : -1;
+          syncCount();
         });
       });
+      syncCount();
       box.querySelector("#chk").addEventListener("click", () => {
         const ans = parseInt(box.querySelector("#ans").value, 10);
-        const correct = a + added;
+        const correct = baseShown + added;
         const res = box.querySelector("#m1res");
         if (ans === correct) {
-          res.innerHTML = `<div class="feedback ok">你真棒！收获一朵小红花！🌺<br>方法：${a} + ${added} = ${correct}</div>`;
+          res.innerHTML = `<div class="feedback ok">你真棒！收获一朵小红花！🌺<br>方法：${baseShown} + ${added} = ${correct}</div>`;
           S.addFlowers(1, "十格计算");
         } else {
-          res.innerHTML = `<div class="feedback warn">加油！还差一点点哦~ 正确答案是 ${correct}（${a} + ${added}）</div>`;
+          res.innerHTML = `<div class="feedback warn">加油！还差一点点哦~ 正确答案是 ${correct}（${baseShown} + ${added}）</div>`;
         }
       });
     }
@@ -1088,24 +1158,46 @@ window.Modules = (function () {
   /* =========================================================
      6) 绘本
      ========================================================= */
+  // 绘本模块：每日绘本上限 5 本；已读历史折叠，展开后每行 5 个、分批加载
+  const DAILY_BOOK_MAX = 5;
+  const READ_BATCH = 15;   // 已读区每批加载 15 本（3 行 × 5）
+
   function book(container) {
     container.innerHTML = `
       <div class="module-title">📚 绘本馆</div>
-      <div class="module-sub">挑一本绘本，一页页读，读完最后一页绘本右上角会出现绿色对钩 ✓，可以反复再读哦！每天都会更新 5 本新绘本～</div>
+      <div class="module-sub">挑一本绘本，一页页读，读完最后一页绘本右上角会出现绿色对钩 ✓，可以反复再读哦！每天更新 <b style="color:var(--pink-600)">${DAILY_BOOK_MAX}</b> 本新绘本，读过的会收进下面的「读过的绘本」里～</div>
       <div class="book-featured" id="featured"></div>
       <div class="book-grid" id="bookGrid"></div>
+      <div class="book-history" id="readWrap">
+        <button class="btn btn-ghost" id="readToggle" style="width:100%">📖 读过的绘本（<span id="readNum">0</span> 本）<span id="readArrow">▸</span></button>
+        <div id="readPanel" style="display:none;margin-top:12px">
+          <div class="book-grid book-grid-5" id="readGrid"></div>
+          <div id="readMoreWrap" style="text-align:center;margin:12px 0 2px;display:none"><button class="btn btn-sm" id="readMoreBtn">📚 加载更多</button></div>
+        </div>
+      </div>
       <div id="moreWrap" style="text-align:center;margin:14px 0 4px"><button class="btn" id="moreBtn">📚 加载更多绘本</button></div>
-      <div id="reader"></div>`;
+      <div id="reader"></div>
+      <div class="book-bottom-space" aria-hidden="true"></div>`;
     const grid = container.querySelector("#bookGrid");
     const reader = container.querySelector("#reader");
     const feat = container.querySelector("#featured");
     const moreWrap = container.querySelector("#moreWrap");
     const moreBtn = container.querySelector("#moreBtn");
+    const readToggle = container.querySelector("#readToggle");
+    const readPanel = container.querySelector("#readPanel");
+    const readGrid = container.querySelector("#readGrid");
+    const readNum = container.querySelector("#readNum");
+    const readArrow = container.querySelector("#readArrow");
+    const readMoreWrap = container.querySelector("#readMoreWrap");
+    const readMoreBtn = container.querySelector("#readMoreBtn");
     // 全库 3000+ 本，分批渲染避免卡顿
     let shown = 60;
     const BATCH = 60;
+    let readShown = READ_BATCH;
+    let readOpen = false;
+    let readList = [];
 
-    function renderBookCard(b, isNew) {
+    function renderBookCard(b, isNew, target) {
       const card = document.createElement("div");
       card.className = "book-card";
       card.style.position = "relative";
@@ -1115,12 +1207,12 @@ window.Modules = (function () {
         + (isNew ? '<span class="book-new-badge" title="今日新绘本">新</span>' : "")
         + (read ? '<span class="book-read-badge" title="这本已经读过啦">✓</span>' : "");
       card.addEventListener("click", () => openBook(b));
-      grid.appendChild(card);
+      (target || grid).appendChild(card);
     }
 
     function renderList() {
-      // 当天 5 本新绘本（与近期不重复），排在前面并带「新」标
-      const dailyBooks = S.getDailyBooks();
+      // 当天的「今日新绘本」，最多 5 本（与近期不重复），排在前面并带「新」标
+      const dailyBooks = (S.getDailyBooks() || []).slice(0, DAILY_BOOK_MAX);
       const dailySet = new Set(dailyBooks.map((b) => b.title));
       const featured = dailyBooks[0] || D.BOOKS[0];
       feat.className = "book-featured";
@@ -1134,20 +1226,29 @@ window.Modules = (function () {
         + (S.isBookRead(featured.title) ? '<span class="book-read-badge" title="这本已经读过啦">✓</span>' : "");
       feat.onclick = () => openBook(featured);
       grid.innerHTML = "";
-      // 其余 4 本「今日新绘本」排在前面
+      // 其余「今日新绘本」排在前面（含首本共 5 本）
       dailyBooks.slice(1).forEach((b) => renderBookCard(b, true));
-      // 其余绘本：已读的按阅读时间倒序排在前面，未读在后
+      // 已读绘本单独收进折叠区（按阅读时间倒序）；未读的留在下面的书架里
       const readTs = {};
       S.getReadBooks().forEach((x) => {
         const t = (x && typeof x === "object") ? x.title : x;
         if (!(t in readTs)) readTs[t] = (x && typeof x === "object") ? (x.ts || 0) : 0;
       });
-      const rest = D.BOOKS.filter((b) => !dailySet.has(b.title));
-      rest.sort((a, b) => {
-        const ra = (a.title in readTs) ? readTs[a.title] : -1;
-        const rb = (b.title in readTs) ? readTs[b.title] : -1;
-        return rb - ra;
+      readList = [];
+      const rest = [];
+      D.BOOKS.forEach((b) => {
+        if (dailySet.has(b.title)) return;              // 今日新绘本已在上面展示
+        if (b.title in readTs) readList.push(b);
+        else rest.push(b);
       });
+      readList.sort((a, b) => readTs[b.title] - readTs[a.title]);
+      // 折叠区标题
+      if (readNum) readNum.textContent = readList.length;
+      if (readArrow) readArrow.textContent = readOpen ? "▾" : "▸";
+      if (readToggle) readToggle.style.display = readList.length ? "" : "none";
+      if (readPanel) readPanel.style.display = readOpen ? "" : "none";
+      if (readOpen) renderReadPanel();
+
       // 分批：先渲染已加载的部分，避免一次渲染 3000 张卡片卡顿
       rest.slice(0, shown).forEach((b) => renderBookCard(b, false));
       if (rest.length > shown) {
@@ -1162,6 +1263,23 @@ window.Modules = (function () {
         if (shown >= rest.length) moreWrap.style.display = "none";
       };
     }
+
+    // 已读历史：展开后每行 5 个，分批加载
+    function renderReadPanel() {
+      readGrid.innerHTML = "";
+      readList.slice(0, readShown).forEach((b) => renderBookCard(b, false, readGrid));
+      readMoreWrap.style.display = readList.length > readShown ? "" : "none";
+    }
+    if (readMoreBtn) readMoreBtn.addEventListener("click", () => {
+      readShown = Math.min(readList.length, readShown + READ_BATCH);
+      renderReadPanel();
+    });
+    if (readToggle) readToggle.addEventListener("click", () => {
+      readOpen = !readOpen;
+      if (readArrow) readArrow.textContent = readOpen ? "▾" : "▸";
+      readPanel.style.display = readOpen ? "" : "none";
+      if (readOpen) renderReadPanel();
+    });
 
     function openBook(b) {
       let p = 0, showPy = true;
@@ -1202,10 +1320,14 @@ window.Modules = (function () {
         // 读完最后一页才标记已读（右上角绿色对钩），只更新对钩、不重建整个列表
         if (last) {
           S.markBookRead(b.title);
-          grid.querySelectorAll(".book-card").forEach((c) => {
-            if (c.dataset.title === b.title && !c.querySelector(".book-read-badge")) {
-              c.insertAdjacentHTML("beforeend", '<span class="book-read-badge" title="这本已经读过啦">✓</span>');
-            }
+          // 主书架 + 已读折叠区都同步打勾
+          [grid, readGrid].forEach((box) => {
+            if (!box) return;
+            box.querySelectorAll(".book-card").forEach((c) => {
+              if (c.dataset.title === b.title && !c.querySelector(".book-read-badge")) {
+                c.insertAdjacentHTML("beforeend", '<span class="book-read-badge" title="这本已经读过啦">✓</span>');
+              }
+            });
           });
           if (feat.dataset.title === b.title && !feat.querySelector(".book-read-badge")) {
             feat.insertAdjacentHTML("beforeend", '<span class="book-read-badge" title="这本已经读过啦">✓</span>');
@@ -2235,9 +2357,9 @@ window.Modules = (function () {
     function shuffleRefs() {
       let pool = D.DRAW_PROMPTS.slice();
       let cand = pool.filter((p) => !usedRefNames.includes(p.name));
-      if (cand.length < 5) { usedRefNames.length = 0; cand = pool.slice(); } // 池子用尽则重置，避免卡死
+      if (cand.length < REF_DAILY_N) { usedRefNames.length = 0; cand = pool.slice(); } // 池子用尽则重置，避免卡死
       for (let i = cand.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = cand[i]; cand[i] = cand[j]; cand[j] = t; }
-      const next = cand.slice(0, 5);
+      const next = cand.slice(0, REF_DAILY_N);
       usedRefNames.push.apply(usedRefNames, next.map((p) => p.name));
       refsToday = next;
       renderRefs();

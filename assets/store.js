@@ -42,6 +42,7 @@ window.Store = (function () {
       enCursor: 0,                // 每日英语轮换指针
       dailyEN: {},                // { "2026-08-06": { newKeys:[], reviewKeys:[] } }
       dailySel: {},               // { logic:{date:[idx...]}, book:{date:[idx]} } 每日不重复选题缓存
+      dailyCount: {},             // { "shiziShuffle":{ "2026-09-09": 2 } } 每日行为计数（跨天自动归零）
       drawings: [],              // 绘画作品 [{id,date,prompt,img,comment,suggestion}]
       readBooks: []               // 已读绘本标题列表（右上角标记绿勾，可重复阅读）
     };
@@ -74,6 +75,7 @@ window.Store = (function () {
     if (!Array.isArray(s.poemLearned)) s.poemLearned = [];
     if (!Array.isArray(s.poemRecited)) s.poemRecited = [];
     if (!Array.isArray(s.readBooks)) s.readBooks = [];
+    if (!s.dailyCount || typeof s.dailyCount !== "object") s.dailyCount = {};
     return s;
   }
   // 初始化状态
@@ -100,6 +102,32 @@ window.Store = (function () {
     return Math.floor((d.getTime() - base) / 86400000);
   }
   function isToday(str) { return str === todayStr(); }
+
+  /* ---------- 每日行为计数（跨天自动归零） ---------- */
+  // 用于「每天最多换 N 次」「今天已朗读 N 次」这类按天限额的需求。
+  // 结构：state.dailyCount[key][YYYY-MM-DD] = number
+  function _countMap(key) {
+    if (!state.dailyCount || typeof state.dailyCount !== "object") state.dailyCount = {};
+    if (!state.dailyCount[key]) state.dailyCount[key] = {};
+    return state.dailyCount[key];
+  }
+  function getDailyCount(key) {
+    const m = _countMap(key);
+    return m[todayStr()] || 0;
+  }
+  function bumpDailyCount(key, step) {
+    const m = _countMap(key);
+    const d = todayStr();
+    m[d] = (m[d] || 0) + (step == null ? 1 : step);
+    save();
+    return m[d];
+  }
+  function setDailyCount(key, v) {
+    const m = _countMap(key);
+    m[todayStr()] = v;
+    save();
+    return v;
+  }
 
   /* ---------- 每日轮换工具 ---------- */
   // 当天整数种子（同一天稳定，跨天变化）
@@ -489,6 +517,7 @@ window.Store = (function () {
     getAI: getAI, setAI: setAI, clearAI: clearAI,
     getTTS: getTTS, setTTS: setTTS,
     dailyIndex: dailyIndex, todayStr: todayStr,
+    getDailyCount: getDailyCount, bumpDailyCount: bumpDailyCount, setDailyCount: setDailyCount,
     todaySeed: todaySeed, dailyPick: dailyPick, dailyPickN: dailyPickN, seededRand: seededRand,
     getDailyStory: getDailyStory, shuffleStory: shuffleStory,
     getPerf: getPerf, setPerf: setPerf, perfTotal: perfTotal,
