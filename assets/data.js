@@ -199,40 +199,43 @@ window.Data = (function () {
   const MATH = { tenMax: 10, twentyMax: 20 };
 
   /* ---------- 英语 ---------- */
-  // 每日单词（按主题轮换），每个含 emoji 图与中文
+  // 每日单词（由易到难分阶排列）。数组顺序 = 难度顺序：
+  // 这 26 个最基础的词固定排在最前面（lv:1 起步），
+  // 之后由 assets/en_words_data.js 追加 L2 生活 → L6 挑战 的扩展词。
+  // store.js 的 getDailyEN() 每天按顺序取 5 个还没学会的词，所以难度会循序增加。
   const EN_WORDS = [
     // animals
-    { en:"cat",    cn:"猫",   emoji:"🐱", theme:"动物" },
-    { en:"dog",    cn:"狗",   emoji:"🐶", theme:"动物" },
-    { en:"fish",   cn:"鱼",   emoji:"🐟", theme:"动物" },
-    { en:"bird",   cn:"鸟",   emoji:"🐦", theme:"动物" },
-    { en:"rabbit", cn:"兔子", emoji:"🐰", theme:"动物" },
-    { en:"elephant",cn:"大象",emoji:"🐘", theme:"动物" },
+    { en:"cat",    cn:"猫",   emoji:"🐱", theme:"动物", lv:1 },
+    { en:"dog",    cn:"狗",   emoji:"🐶", theme:"动物", lv:1 },
+    { en:"fish",   cn:"鱼",   emoji:"🐟", theme:"动物", lv:1 },
+    { en:"bird",   cn:"鸟",   emoji:"🐦", theme:"动物", lv:1 },
+    { en:"rabbit", cn:"兔子", emoji:"🐰", theme:"动物", lv:1 },
+    { en:"elephant",cn:"大象",emoji:"🐘", theme:"动物", lv:1 },
     // plants
-    { en:"flower", cn:"花",   emoji:"🌸", theme:"植物" },
-    { en:"tree",   cn:"树",   emoji:"🌳", theme:"植物" },
-    { en:"grass",  cn:"草",   emoji:"🌿", theme:"植物" },
-    { en:"apple",  cn:"苹果", emoji:"🍎", theme:"植物" },
+    { en:"flower", cn:"花",   emoji:"🌸", theme:"植物", lv:1 },
+    { en:"tree",   cn:"树",   emoji:"🌳", theme:"植物", lv:1 },
+    { en:"grass",  cn:"草",   emoji:"🌿", theme:"植物", lv:1 },
+    { en:"apple",  cn:"苹果", emoji:"🍎", theme:"植物", lv:1 },
     // transport
-    { en:"car",    cn:"汽车", emoji:"🚗", theme:"交通" },
-    { en:"bus",    cn:"公交", emoji:"🚌", theme:"交通" },
-    { en:"train",  cn:"火车", emoji:"🚂", theme:"交通" },
-    { en:"boat",   cn:"船",   emoji:"⛵", theme:"交通" },
+    { en:"car",    cn:"汽车", emoji:"🚗", theme:"交通", lv:1 },
+    { en:"bus",    cn:"公交", emoji:"🚌", theme:"交通", lv:1 },
+    { en:"train",  cn:"火车", emoji:"🚂", theme:"交通", lv:1 },
+    { en:"boat",   cn:"船",   emoji:"⛵", theme:"交通", lv:1 },
     // life
-    { en:"water",  cn:"水",   emoji:"💧", theme:"生活" },
-    { en:"milk",   cn:"牛奶", emoji:"🥛", theme:"生活" },
-    { en:"book",   cn:"书",   emoji:"📖", theme:"生活" },
-    { en:"ball",   cn:"球",   emoji:"⚽", theme:"生活" },
+    { en:"water",  cn:"水",   emoji:"💧", theme:"生活", lv:1 },
+    { en:"milk",   cn:"牛奶", emoji:"🥛", theme:"生活", lv:1 },
+    { en:"book",   cn:"书",   emoji:"📖", theme:"生活", lv:1 },
+    { en:"ball",   cn:"球",   emoji:"⚽", theme:"生活", lv:1 },
     // weather
-    { en:"sun",    cn:"太阳", emoji:"☀️", theme:"天气" },
-    { en:"rain",   cn:"雨",   emoji:"🌧️", theme:"天气" },
-    { en:"snow",   cn:"雪",   emoji:"❄️", theme:"天气" },
-    { en:"wind",   cn:"风",   emoji:"🌬️", theme:"天气" },
+    { en:"sun",    cn:"太阳", emoji:"☀️", theme:"天气", lv:1 },
+    { en:"rain",   cn:"雨",   emoji:"🌧️", theme:"天气", lv:1 },
+    { en:"snow",   cn:"雪",   emoji:"❄️", theme:"天气", lv:1 },
+    { en:"wind",   cn:"风",   emoji:"🌬️", theme:"天气", lv:1 },
     // communication
-    { en:"hello",  cn:"你好", emoji:"👋", theme:"交流" },
-    { en:"thank you",cn:"谢谢",emoji:"🙏", theme:"交流" },
-    { en:"goodbye",cn:"再见", emoji:"👋", theme:"交流" },
-    { en:"happy",  cn:"开心", emoji:"😄", theme:"交流" }
+    { en:"hello",  cn:"你好", emoji:"👋", theme:"交流", lv:1 },
+    { en:"thank you",cn:"谢谢",emoji:"🙏", theme:"交流", lv:1 },
+    { en:"goodbye",cn:"再见", emoji:"👋", theme:"交流", lv:1 },
+    { en:"happy",  cn:"开心", emoji:"😄", theme:"交流", lv:1 }
   ];
   // 每日小对话（5句/天，带图，故事性）
   const EN_DIALOGUES = [

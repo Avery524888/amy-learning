@@ -837,13 +837,41 @@ window.Modules = (function () {
   /* =========================================================
      4) 英语
      ========================================================= */
+  // 英语词库的 6 个难度阶位（与 gen_en_words.py 中的 LEVEL_NAMES 对应）
+  const EN_LV_NAME = { 1: "起步", 2: "生活", 3: "拓展", 4: "进阶", 5: "提高", 6: "挑战" };
+  const EN_LV_DESC = {
+    1: "颜色 / 数字 / 常见动物 / 家人 / 五官",
+    2: "水果蔬菜 / 衣服 / 家居 / 玩具 / 天气",
+    3: "更多动物 / 交通 / 自然 / 学校 / 动作",
+    4: "动词 / 心情 / 职业 / 地点 / 时间",
+    5: "抽象名词 / 多音节形容词 / 副词",
+    6: "高年级常用词 / 连接词 / 日常短语",
+  };
+
   function english(container) {
     const dialogue = D.EN_DIALOGUES[S.dailyIndex(D.EN_DIALOGUES.length)];
     container.innerHTML = `
       <div class="module-title">🔤 英语乐园</div>
-      <div class="module-sub">点图听音，长按卡片加入词库。每天固定 5 个新单词，学会的会打勾留在「今日新学」；以前学会的进入「复习记录」哦～</div>
+      <div class="module-sub">点图听音，长按卡片加入词库。每天 5 个新单词，<b>从最常用的日常词开始，学会一批自动进阶一批</b>，由易到难共 6 阶；学会的会打勾留在「今日新学」，以前学会的进入「复习记录」哦～</div>
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--pink-600)"><span>🌱 今日新学（<span id="newCount">0</span> 个）</span><button class="btn btn-ghost btn-sm" id="newShuffle" title="换一批不同的新单词">🔄 换一换</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--pink-600);gap:10px;flex-wrap:wrap">
+          <span>🌱 今日新学（<span id="newCount">0</span> 个）<span id="lvBadge" class="lv-badge"></span></span>
+          <button class="btn btn-ghost btn-sm" id="newShuffle" title="按难度顺序看下一批新单词">🔄 换一换</button>
+        </div>
+        <div class="lv-track" id="lvTrack"></div>
+        <div style="margin-top:8px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span>🎚️ 难度上限：</span>
+          <select id="enMaxSel" class="text-input" style="width:auto;padding:4px 8px">
+            <option value="0">全部（6 阶）</option>
+            <option value="1">只到第 1 阶（起步）</option>
+            <option value="2">只到第 2 阶（生活）</option>
+            <option value="3">只到第 3 阶（拓展）</option>
+            <option value="4">只到第 4 阶（进阶）</option>
+            <option value="5">只到第 5 阶（提高）</option>
+            <option value="6">只到第 6 阶（挑战）</option>
+          </select>
+          <span style="opacity:.7">家长按孩子水平选，新词不会超过这个难度</span>
+        </div>
         <div class="word-grid" id="wordGridNew"></div>
       </div>
       <div class="card">
@@ -883,8 +911,35 @@ window.Modules = (function () {
     // 加入词库的单词仍留在「今日新学」并显示「已学会✓」，不会挪走，保证“一直保持新增状态”。
     // 复习记录 = 之前已学会（不在今日新学里的）单词。
     // 当前展示的“新单词”批次：默认当天固定的 5 个（刷新后不变）；
-    // 点「换一换」在未学会单词里随机换一批不同的，方便多学一点。
+    // 点「换一换」沿词库「由易到难」的顺序看下一批还没学会的词（不再全库随机，保证难度循序渐进）。
     let curBatch = (S.getDailyEN().newKeys || []).slice();
+    const enIndex = {};
+    D.EN_WORDS.forEach((w, i) => { if (!(w.en in enIndex)) enIndex[w.en] = i; });
+
+    // 批次所处的难度阶位（取这批里最难的词所在的阶）
+    function batchLevel(words) {
+      const lvs = words.map((w) => w.lv).filter((v) => typeof v === "number");
+      return lvs.length ? Math.max.apply(null, lvs) : null;
+    }
+    function renderLevelInfo(words) {
+      const badge = container.querySelector("#lvBadge");
+      const track = container.querySelector("#lvTrack");
+      const lv = batchLevel(words);
+      if (badge) {
+        badge.textContent = lv ? `第 ${lv} 阶 · ${EN_LV_NAME[lv] || ""}` : "";
+        badge.title = lv ? (EN_LV_DESC[lv] || "") : "";
+      }
+      if (track) {
+        if (!lv) { track.innerHTML = ""; }
+        else {
+          const dots = [1, 2, 3, 4, 5, 6].map((i) =>
+            `<span class="lv-dot${i <= lv ? " on" : ""}" title="第 ${i} 阶 ${EN_LV_NAME[i]}"></span>`).join("");
+          track.innerHTML = `<span class="lv-track-label">难度</span>${dots}
+            <span class="lv-track-tip">${esc(EN_LV_DESC[lv] || "")}</span>`;
+        }
+      }
+    }
+
     function rebuildWords() {
       const newSet = new Set(curBatch);
       const newWords = curBatch.map((k) => D.EN_WORDS.find((w) => w.en === k)).filter(Boolean);
@@ -898,19 +953,43 @@ window.Modules = (function () {
       else reviewWords.forEach((w) => renderWordCard(gridRev, w));
       const nc = container.querySelector("#newCount"); if (nc) nc.textContent = newWords.length;
       const rc = container.querySelector("#revCount"); if (rc) rc.textContent = reviewWords.length;
+      renderLevelInfo(newWords);
     }
     rebuildWords();
-    // 换一换：在未加入词库的单词里挑一批不同于当前展示的新词
+    // 难度上限选择：家长按孩子水平锁定每日新词阶位
+    const maxSel = container.querySelector("#enMaxSel");
+    if (maxSel) {
+      maxSel.value = String(S.getEnMaxLevel());
+      maxSel.addEventListener("change", () => {
+        S.setEnMaxLevel(maxSel.value);
+        curBatch = (S.getDailyEN().newKeys || []).slice();
+        rebuildWords();
+        const lv = S.getEnMaxLevel();
+        window.App && window.App.toast(lv ? `已设置难度上限：第 ${lv} 阶（${EN_LV_NAME[lv]}）` : "已取消难度上限，将学到全部 6 阶");
+      });
+    }
+    // 换一换：沿「由易到难」的顺序，从当前批次之后取下一批还没学会的词
     container.querySelector("#newShuffle").addEventListener("click", () => {
       const bank = new Set(S.getEN().map((x) => x.en));
-      const pool = D.EN_WORDS.filter((w) => !bank.has(w.en) && !curBatch.includes(w.en));
-      const src = pool.length >= 5 ? pool : D.EN_WORDS.filter((w) => !bank.has(w.en));
-      const shuffled = src.slice().sort(() => Math.random() - 0.5);
-      let next = shuffled.slice(0, Math.min(5, shuffled.length)).map((w) => w.en);
-      if (!next.length) next = curBatch.slice(0, 5);
+      const list = D.EN_WORDS;
+      const n = list.length || 1;
+      const maxLv = S.getEnMaxLevel();
+      const within = (w) => !maxLv || !w.lv || w.lv <= maxLv;
+      // 从当前批次里最靠后的那个词之后开始找
+      let startIdx = -1;
+      curBatch.forEach((k) => { if (k in enIndex && enIndex[k] > startIdx) startIdx = enIndex[k]; });
+      const next = [];
+      for (let i = 0; i < n && next.length < 5; i++) {
+        const w = list[(startIdx + 1 + i) % n];
+        if (!w || !w.en || !within(w)) continue;
+        if (bank.has(w.en) || curBatch.indexOf(w.en) >= 0 || next.indexOf(w.en) >= 0) continue;
+        next.push(w.en);
+      }
+      if (!next.length) { window.App && window.App.toast("词库里的单词都学过啦，去「复习记录」巩固一下吧～"); return; }
       curBatch = next;
       rebuildWords();
-      window.App && window.App.toast("换了一批新单词～");
+      const lv = batchLevel(curBatch.map((k) => list[enIndex[k]]).filter(Boolean));
+      window.App && window.App.toast(lv ? `换到第 ${lv} 阶（${EN_LV_NAME[lv]}）的新单词啦～` : "换了一批新单词～");
     });
 
     const dlg = container.querySelector("#dialogueBox");

@@ -11,6 +11,10 @@ window.Store = (function () {
   "use strict";
   const KEY = "amy_learning_v2";
   const VERSION = 2;
+  // 英语词库改版标记：3 = 2026-09-24 起重新分级（最基础动词/形容词/方位/问候前置到 L1，
+  // 并补上原先漏掉被甩到词库末尾的基础词）。词库顺序变了，旧的每日选词游标/缓存就失效了，
+  // 检测到版本不一致时重置它们。
+  const EN_BANK_VER = 3;
 
   /* ---------- 安全：HTML 转义（防 XSS） ---------- */
   function esc(s) {
@@ -40,6 +44,8 @@ window.Store = (function () {
       lastVisit: todayStr(),
       perfByDate: {},             // { "2026-08-06": { behaviorId: "good"|"bad" } }
       enCursor: 0,                // 每日英语轮换指针
+      enBankVer: EN_BANK_VER,     // 英语词库版本（改版后自动重置 enCursor / dailyEN）
+      enMaxLevel: 0,              // 英语难度上限（0=不限制，1~6=只学到第 N 阶，家长按孩子水平设置）
       dailyEN: {},                // { "2026-08-06": { newKeys:[], reviewKeys:[] } }
       dailySel: {},               // { logic:{date:[idx...]}, book:{date:[idx]} } 每日不重复选题缓存
       dailyCount: {},             // { "shiziShuffle":{ "2026-09-09": 2 } } 每日行为计数（跨天自动归零）
@@ -76,6 +82,12 @@ window.Store = (function () {
     if (!Array.isArray(s.poemRecited)) s.poemRecited = [];
     if (!Array.isArray(s.readBooks)) s.readBooks = [];
     if (!s.dailyCount || typeof s.dailyCount !== "object") s.dailyCount = {};
+    // 英语词库改版：旧的选词游标和当天缓存都基于旧顺序，重置它们（已学会的词不受影响）
+    if (o.enBankVer !== EN_BANK_VER) {
+      s.enCursor = 0;
+      s.dailyEN = {};
+      s.enBankVer = EN_BANK_VER;
+    }
     return s;
   }
   // 初始化状态
@@ -249,20 +261,67 @@ window.Store = (function () {
   }
 
   /* ---------- 每日英语（5 新 + 2 复习） ---------- */
+  // EN_WORDS 已按「由易到难」分阶排列（L1 起步 → L6 挑战），这里沿数组顺序
+  // 从游标往后找「还没学会的最简 5 个词」，于是：
+  //   - 学得快 → 很快推进到更高阶的词
+  //   - 学得慢 → 一直停在低阶反复巩固
+  // 游标始终前进（跳过的已学词也计入），保证每天都有新内容，不会卡在同一批。
   function getDailyEN() {
     const d = todayStr();
-    if (state.dailyEN[d]) return state.dailyEN[d];
     const words = (window.Data && window.Data.EN_WORDS) || [];
     const len = words.length || 1;
-    let cursor = state.enCursor || 0;
-    const newKeys = [], revKeys = [];
-    for (let i = 0; i < 5; i++) newKeys.push(words[(cursor + i) % len].en);
+    // 当天缓存校验：如果缓存里的词已经不在词库里（词库改版过），作废重算
+    const cached = state.dailyEN[d];
+    if (cached && Array.isArray(cached.newKeys) && cached.newKeys.length) {
+      const inBank = new Set(words.map((w) => w.en));
+      if (cached.newKeys.every((k) => inBank.has(k))) return cached;
+    }
+    const bank = new Set((state.learnedEN || []).map((x) => String(x.en).toLowerCase()));
+    const cursor = (((state.enCursor || 0) % len) + len) % len;
+    // 难度上限：家长可把每日新词锁在适合孩子的阶位（enMaxLevel=0 表示不限制）
+    const maxLv = state.enMaxLevel || 0;
+    const withinCeiling = (w) => !maxLv || !w.lv || w.lv <= maxLv;
+
+    const newKeys = [];
+    let step = 0;
+    while (step < len && newKeys.length < 5) {
+      const w = words[(cursor + step) % len];
+      if (w && w.en && withinCeiling(w) && !bank.has(String(w.en).toLowerCase()) && newKeys.indexOf(w.en) < 0) {
+        newKeys.push(w.en);
+      }
+      step++;
+    }
+    // 兜底：整库基本都学过了，或当前上限内已无可学新词 → 退回按游标顺序取（不限阶），保证每天仍有内容可看
+    if (!newKeys.length) {
+      for (let i = 0; i < Math.min(5, len); i++) {
+        const w = words[(cursor + i) % len];
+        if (w && w.en && !bank.has(String(w.en).toLowerCase()) && newKeys.indexOf(w.en) < 0) newKeys.push(w.en);
+      }
+      step = 5;
+    }
+
+    // 复习词：游标往回取，作为「最近学过」的提示
+    const revKeys = [];
     for (let i = 0; i < 2; i++) revKeys.push(words[(((cursor - 5 + i) % len) + len) % len].en);
-    state.enCursor = (cursor + 5) % len;
+
+    state.enCursor = (cursor + Math.max(step, 5)) % len;
     const obj = { newKeys: newKeys, reviewKeys: revKeys };
     state.dailyEN[d] = obj;
     save();
     return obj;
+  }
+
+  /* ---------- 英语难度上限 ---------- */
+  function getEnMaxLevel() { return state.enMaxLevel || 0; }
+  function setEnMaxLevel(v) {
+    v = parseInt(v, 10);
+    if (isNaN(v) || v < 0 || v > 6) v = 0;
+    if (state.enMaxLevel === v) return;
+    state.enMaxLevel = v;
+    // 上限变化后，当天的每日新词需要按新范围重选；清空今日缓存让其立即重算
+    const d = todayStr();
+    if (state.dailyEN[d]) delete state.dailyEN[d];
+    save();
   }
 
   /* ---------- 绘画作品 ---------- */
@@ -522,6 +581,7 @@ window.Store = (function () {
     getDailyStory: getDailyStory, shuffleStory: shuffleStory,
     getPerf: getPerf, setPerf: setPerf, perfTotal: perfTotal,
     getDailyEN: getDailyEN, addDrawing: addDrawing, getDrawings: getDrawings, removeDrawing: removeDrawing,
+    getEnMaxLevel: getEnMaxLevel, setEnMaxLevel: setEnMaxLevel,
     getDailyLogic: getDailyLogic, getDailyBook: getDailyBook, getDailyBooks: getDailyBooks
   };
 })();
