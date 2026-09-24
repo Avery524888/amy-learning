@@ -870,7 +870,7 @@ window.Modules = (function () {
             <option value="5">只到第 5 阶（提高）</option>
             <option value="6">只到第 6 阶（挑战）</option>
           </select>
-          <span style="opacity:.7">家长按孩子水平选，新词不会超过这个难度</span>
+          <span style="opacity:.7">家长按孩子水平选，切换后立刻显示对应阶的单词</span>
         </div>
         <div class="word-grid" id="wordGridNew"></div>
       </div>

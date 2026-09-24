@@ -46,6 +46,7 @@ window.Store = (function () {
       enCursor: 0,                // 每日英语轮换指针
       enBankVer: EN_BANK_VER,     // 英语词库版本（改版后自动重置 enCursor / dailyEN）
       enMaxLevel: 0,              // 英语难度上限（0=不限制，1~6=只学到第 N 阶，家长按孩子水平设置）
+      enLevelCursor: 0,           // 难度上限生效时，在「第 N 阶词段」内独立前进的游标（切阶时归位到该阶起点）
       dailyEN: {},                // { "2026-08-06": { newKeys:[], reviewKeys:[] } }
       dailySel: {},               // { logic:{date:[idx...]}, book:{date:[idx]} } 每日不重复选题缓存
       dailyCount: {},             // { "shiziShuffle":{ "2026-09-09": 2 } } 每日行为计数（跨天自动归零）
@@ -266,6 +267,14 @@ window.Store = (function () {
   //   - 学得快 → 很快推进到更高阶的词
   //   - 学得慢 → 一直停在低阶反复巩固
   // 游标始终前进（跳过的已学词也计入），保证每天都有新内容，不会卡在同一批。
+  // 第 N 阶词段在数组里的起点下标（词库 lv 单调递增，第一个 lv>=maxLv 的位置即该阶起点）
+  function levelStartIdx(maxLv) {
+    const words = (window.Data && window.Data.EN_WORDS) || [];
+    if (!maxLv) return 0;
+    for (let i = 0; i < words.length; i++) if (words[i] && words[i].lv >= maxLv) return i;
+    return 0;
+  }
+
   function getDailyEN() {
     const d = todayStr();
     const words = (window.Data && window.Data.EN_WORDS) || [];
@@ -277,10 +286,15 @@ window.Store = (function () {
       if (cached.newKeys.every((k) => inBank.has(k))) return cached;
     }
     const bank = new Set((state.learnedEN || []).map((x) => String(x.en).toLowerCase()));
-    const cursor = (((state.enCursor || 0) % len) + len) % len;
     // 难度上限：家长可把每日新词锁在适合孩子的阶位（enMaxLevel=0 表示不限制）
     const maxLv = state.enMaxLevel || 0;
     const withinCeiling = (w) => !maxLv || !w.lv || w.lv <= maxLv;
+    // 上限生效时，从「第 N 阶词段」起点扫描（enLevelCursor，切阶时归位到该阶起点），
+    // 这样切换难度后立即看到对应难度的词，而不是沿用可能已深入高难度区的全局 enCursor。
+    // 不限上限时仍走全局 enCursor，保持「由易到难循序渐进」的自由进阶。
+    const cursor = maxLv
+      ? (state.enLevelCursor || levelStartIdx(maxLv))
+      : (((state.enCursor || 0) % len) + len) % len;
 
     const newKeys = [];
     let step = 0;
@@ -293,8 +307,9 @@ window.Store = (function () {
     }
     // 兜底：整库基本都学过了，或当前上限内已无可学新词 → 退回按游标顺序取（不限阶），保证每天仍有内容可看
     if (!newKeys.length) {
+      const fb = maxLv ? cursor : (((state.enCursor || 0) % len) + len) % len;
       for (let i = 0; i < Math.min(5, len); i++) {
-        const w = words[(cursor + i) % len];
+        const w = words[(fb + i) % len];
         if (w && w.en && !bank.has(String(w.en).toLowerCase()) && newKeys.indexOf(w.en) < 0) newKeys.push(w.en);
       }
       step = 5;
@@ -304,7 +319,9 @@ window.Store = (function () {
     const revKeys = [];
     for (let i = 0; i < 2; i++) revKeys.push(words[(((cursor - 5 + i) % len) + len) % len].en);
 
-    state.enCursor = (cursor + Math.max(step, 5)) % len;
+    // 推进对应游标（限阶用 enLevelCursor，不限用 enCursor）
+    if (maxLv) state.enLevelCursor = (cursor + Math.max(step, 5)) % len;
+    else state.enCursor = (cursor + Math.max(step, 5)) % len;
     const obj = { newKeys: newKeys, reviewKeys: revKeys };
     state.dailyEN[d] = obj;
     save();
@@ -318,6 +335,8 @@ window.Store = (function () {
     if (isNaN(v) || v < 0 || v > 6) v = 0;
     if (state.enMaxLevel === v) return;
     state.enMaxLevel = v;
+    // 切换难度：阶位内游标归位到「第 N 阶词段」起点，使切换后立即看到对应难度的词
+    state.enLevelCursor = levelStartIdx(v);
     // 上限变化后，当天的每日新词需要按新范围重选；清空今日缓存让其立即重算
     const d = todayStr();
     if (state.dailyEN[d]) delete state.dailyEN[d];
