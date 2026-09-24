@@ -2070,7 +2070,7 @@ window.Modules = (function () {
     const learned = S.getLearnedPoems(), recited = S.getRecitedPoems();
     container.innerHTML = `
       <div class="module-title">📚 我的词库</div>
-      <div class="module-sub">点一点下面的字 / 词 / 诗，就能看到详情并听读哦～</div>
+      <div class="module-sub">点一点下面的字 / 词 / 诗，就能看到详情并听读；标签上的 ✕ 可从词库移除（诗词天地会同步标记为未背诵）。</div>
       <div class="card">
         <div>第一部分：汉字词库 <span class="wb-count">${cn.length} 个字</span></div>
         <div style="margin-top:10px" id="cnBox"></div>
@@ -2167,9 +2167,35 @@ window.Modules = (function () {
       enBox.appendChild(tag);
     });
     const plBox = container.querySelector("#plBox");
-    learned.forEach((p) => { const t = document.createElement("span"); t.className = "wb-tag wb-click"; t.textContent = `《${p.title}》`; t.addEventListener("click", () => showPoemDetail(p)); plBox.appendChild(t); });
+    learned.forEach((p) => {
+      const t = document.createElement("span");
+      t.className = "wb-tag wb-click";
+      t.innerHTML = `《${esc(p.title)}》<span class="rm" title="从词库移除">✕</span>`;
+      t.addEventListener("click", (e) => {
+        if (e.target.classList.contains("rm")) {
+          S.removePoem(p.title, p.author);
+          notifyBankChange();   // 实时同步到诗词天地模块（状态由 store 派生）
+          window.App && window.App.toast("已从词库移除，诗词模块会标记为未背诵～");
+          wordbank(container);
+        } else showPoemDetail(p);
+      });
+      plBox.appendChild(t);
+    });
     const prBox = container.querySelector("#prBox");
-    recited.forEach((p) => { const t = document.createElement("span"); t.className = "wb-tag wb-click"; t.textContent = `《${p.title}》`; t.addEventListener("click", () => showPoemDetail(p)); prBox.appendChild(t); });
+    recited.forEach((p) => {
+      const t = document.createElement("span");
+      t.className = "wb-tag wb-click";
+      t.innerHTML = `《${esc(p.title)}》<span class="rm" title="从词库移除">✕</span>`;
+      t.addEventListener("click", (e) => {
+        if (e.target.classList.contains("rm")) {
+          S.removePoem(p.title, p.author);
+          notifyBankChange();   // 实时同步到诗词天地模块（状态由 store 派生）
+          window.App && window.App.toast("已从词库移除，诗词模块会标记为未背诵～");
+          wordbank(container);
+        } else showPoemDetail(p);
+      });
+      prBox.appendChild(t);
+    });
   }
 
   /* =========================================================

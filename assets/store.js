@@ -478,6 +478,13 @@ window.Store = (function () {
   }
   function getLearnedPoems() { return state.poemLearned.slice(); }
   function getRecitedPoems() { return state.poemRecited.slice(); }
+  // 从「我的词库」移除某首诗：同时清掉已学/会背诵两条记录，
+  // 诗词天地模块的状态由 store 派生，移除后即显示为「未学/未背诵」。
+  function removePoem(title, author) {
+    state.poemLearned = state.poemLearned.filter((p) => !(p.title === title && p.author === author));
+    state.poemRecited = state.poemRecited.filter((p) => !(p.title === title && p.author === author));
+    save(); emit();
+  }
 
   /* ---------- 绘本已读状态 ---------- */
   // 每条记录存 {title, ts}，ts 用于按阅读时间倒序展示（兼容旧版纯字符串记录）
@@ -589,7 +596,7 @@ window.Store = (function () {
     addCN: addCN, removeCN: removeCN, addEN: addEN, removeEN: removeEN,
     getCN: getCN, getEN: getEN,
     markLearned: markLearned, isLearned: isLearned, recite: recite, isRecited: isRecited,
-    getLearnedPoems: getLearnedPoems, getRecitedPoems: getRecitedPoems,
+    getLearnedPoems: getLearnedPoems, getRecitedPoems: getRecitedPoems, removePoem: removePoem,
     markBookRead: markBookRead, isBookRead: isBookRead, getReadBooks: getReadBooks,
     getRewards: getRewards, getFlower: getFlower, exchange: exchange,
     getAI: getAI, setAI: setAI, clearAI: clearAI,
