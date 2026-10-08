@@ -279,6 +279,10 @@ body {
 .poem-line { font-size: 24px; line-height: 1.7; }
 .poem-char { cursor: pointer; padding: 0 1px; border-radius: 6px; }
 .poem-char:hover { background: var(--pink-100); }
+.poem-char.done-added { opacity: .38; filter: grayscale(1); }
+.poem-char-add { cursor: pointer; padding: 0 1px; border-radius: 6px; }
+.poem-char-add:hover { background: var(--pink-100); }
+.poem-char-add.done-added { opacity: .38; filter: grayscale(1); }
 .poem-pinyin { font-size: 15px; color: var(--purple); text-align: center; margin-bottom: 2px; }
 .poem-meta { font-size: 14px; color: var(--ink-soft); }
 .poem-img { font-size: 64px; text-align: center; margin: 8px 0; }

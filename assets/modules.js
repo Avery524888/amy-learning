@@ -1957,7 +1957,7 @@ window.Modules = (function () {
   function poetry(container) {
     container.innerHTML = `
       <div class="module-title">📜 诗词天地</div>
-      <div class="module-sub">${window.POEMS.length} 首诗词（含义务教育必背与名家名篇），按诗人和类型筛选，点字听读，跟着背诵～默认先展示一首最简单的诗。</div>
+      <div class="module-sub">${window.POEMS.length} 首诗词（含义务教育必背与名家名篇），按诗人和类型筛选，点字听读，跟着背诵～默认先展示一首最简单的诗。<b style="color:var(--pink-600)">双击或长按单字</b>可加入「汉字词库」哦。</div>
       <div class="poem-nav">
         <div class="poem-search"><input id="poemSearch" placeholder="🔍 搜诗人或诗名" /></div>
       </div>
@@ -2009,6 +2009,17 @@ window.Modules = (function () {
       return list.indexOf(pick);
     }
 
+    // 诗词里双击/长按单字 → 加入汉字词库（复用通用 wordPopup）
+    function addPoemChar(ch, x, y) {
+      const info = getCharInfo(ch);
+      wordPopup(ch, info.py, info.mean, "cn", x || 120, y || 120, (added) => {
+        if (added) {
+          const box = container.querySelector("#poemBox");
+          if (box) box.querySelectorAll(".poem-char").forEach((sp) => { if (sp.dataset.ch === ch) sp.classList.add("done-added"); });
+        }
+      });
+    }
+
     function render() {
       const list = filtered();
       const box = container.querySelector("#poemBox");
@@ -2019,12 +2030,13 @@ window.Modules = (function () {
       const recited = S.isRecited(p.title, p.author);
       const added = learned || recited;
       let linesHtml = "";
+      const inBank = new Set(S.getCN().map((x) => x.char));
       p.lines.forEach((ln) => {
         const py = genPinyinLine(ln);
         let chars = "";
         for (const ch of ln) {
           if ("，。？！、；：".indexOf(ch) >= 0) chars += `<span>${esc(ch)}</span>`;
-          else chars += `<span class="poem-char" data-ch="${esc(ch)}">${esc(ch)}</span>`;
+          else chars += `<span class="poem-char${inBank.has(ch) ? " done-added" : ""}" data-ch="${esc(ch)}">${esc(ch)}</span>`;
         }
         linesHtml += `<div class="poem-pinyin">${esc(py)}</div><div class="poem-line">${chars}</div>`;
       });
@@ -2046,7 +2058,12 @@ window.Modules = (function () {
         </div>
         <div class="poem-note"><b>📖 释义：</b>${esc(note)} <button class="btn btn-ghost btn-sm" id="pNoteRead" title="朗读释义">🔊 读释义</button></div>
         ${recited ? `<div class="feedback ok" style="margin-top:8px">这首已经会背诵啦，真厉害！🌟</div>` : ""}`;
-      box.querySelectorAll(".poem-char").forEach((sp) => sp.addEventListener("click", () => A.speak(sp.dataset.ch, "zh-CN")));
+      box.querySelectorAll(".poem-char").forEach((sp) => {
+        const ch = sp.dataset.ch;
+        sp.addEventListener("click", () => A.speak(ch, "zh-CN"));
+        sp.addEventListener("dblclick", (e) => { e.preventDefault(); addPoemChar(ch, e.clientX, e.clientY); });
+        attachLongPress(sp, (x, y) => addPoemChar(ch, x, y));
+      });
       box.querySelector("#pRead").addEventListener("click", () => A.speakPoem(p.lines.join("")));
       box.querySelector("#pNoteRead").addEventListener("click", () => A.speak(note, "zh-CN", { rate: 0.8 }));
       box.querySelector("#pRecite").addEventListener("click", () => {
@@ -2118,10 +2135,14 @@ window.Modules = (function () {
       if (!poem) poem = { title: p.title, author: p.author, lines: p.lines || [], type: p.type || "唐诗" };
       try {
         let linesHtml = "";
+        const inBankSet = new Set(S.getCN().map((x) => x.char));
         (poem.lines || []).forEach((ln) => {
           const py = genPinyinLine(ln);
           let chars = "";
-          for (const ch of ln) { chars += `<span class="pc">${esc(ch)}</span>`; }
+          for (const ch of ln) {
+            if (isCJK(ch)) chars += `<span class="pc poem-char-add${inBankSet.has(ch) ? " done-added" : ""}" data-ch="${esc(ch)}">${esc(ch)}</span>`;
+            else chars += `<span class="punc">${esc(ch)}</span>`;
+          }
           linesHtml += `<div class="poem-pinyin">${esc(py)}</div><div class="poem-line">${chars}</div>`;
         });
         const note = window.getPoemNote ? window.getPoemNote(poem) : "";
@@ -2136,10 +2157,22 @@ window.Modules = (function () {
           </div>`;
         const rb = box.querySelector("#poemRead");
         if (rb) rb.addEventListener("click", () => A.speakPoem((poem.lines || []).join("")));
+        box.querySelectorAll(".poem-char-add").forEach((sp) => {
+          const ch = sp.dataset.ch;
+          sp.addEventListener("click", () => A.speak(ch, "zh-CN"));
+          sp.addEventListener("dblclick", (e) => { e.preventDefault(); addPoemCharToBank(ch, e.clientX, e.clientY); });
+          attachLongPress(sp, (x, y) => addPoemCharToBank(ch, x, y));
+        });
         if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
       } catch (e) {
         box.innerHTML = `<div class="tip">这首诗暂时打不开详情，请稍后再试～（${esc(String((e && e.message) || e))}）</div>`;
       }
+    }
+
+    // 词库诗词详情里双击/长按单字 → 加入汉字词库（复用通用 wordPopup）
+    function addPoemCharToBank(ch, x, y) {
+      const info = getCharInfo(ch);
+      wordPopup(ch, info.py, info.mean, "cn", x || 120, y || 120, () => showPoemDetail(p));
     }
 
     const cnBox = container.querySelector("#cnBox");
