@@ -2962,11 +2962,98 @@ window.Modules = (function () {
     renderWhys();
   }
 
+  /* =========================================================
+     14) 幼升小视频（免费资源清单，点击跳转原网页观看）
+     ========================================================= */
+  function videos(container) {
+    const EXTRA_KEY = "amy_videos_extra";
+    function loadExtra() {
+      try { return JSON.parse(localStorage.getItem(EXTRA_KEY) || "[]"); }
+      catch (e) { return []; }
+    }
+    function saveExtra(arr) { localStorage.setItem(EXTRA_KEY, JSON.stringify(arr)); }
+
+    function getList() {
+      const base = (window.VideoList || []).map((v) => Object.assign({ _src: "base" }, v));
+      const extra = loadExtra().map((v) => Object.assign({ _src: "extra" }, v));
+      return base.concat(extra);
+    }
+
+    function render() {
+      const list = getList();
+      const tags = [];
+      list.forEach((v) => { if (v.tag && tags.indexOf(v.tag) < 0) tags.push(v.tag); });
+
+      let html = `
+        <div class="module-title">🎬 幼升小视频</div>
+        <div class="module-sub">这里放家长精选的免费学习视频，点开就在新标签页观看，安全不跑偏～</div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="font-weight:800;color:var(--pink-600);margin-bottom:8px">➕ 添加视频（存在本机浏览器）</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input class="text-input" id="vTitle" maxlength="30" placeholder="视频名称" style="flex:1;min-width:120px" />
+            <input class="text-input" id="vUrl" placeholder="视频链接（http/https）" style="flex:2;min-width:180px" />
+            <input class="text-input" id="vTag" maxlength="8" placeholder="分类" style="width:90px" />
+            <button class="btn btn-primary btn-sm" id="vAdd">添加</button>
+          </div>
+          <div style="font-size:12px;color:#8a6a78;margin-top:6px">链接示例：B站单个视频 https://www.bilibili.com/video/BVxxxx ，或搜索合集 https://search.bilibili.com/all?keyword=幼小衔接拼音</div>
+        </div>`;
+      if (tags.length) {
+        html += `<div class="poem-nav" style="margin-bottom:10px"><span class="chip">全部</span>` +
+          tags.map((t) => `<span class="chip">${esc(t)}</span>`).join("") + `</div>`;
+      }
+      html += `<div class="video-grid" id="videoGrid"></div>`;
+      container.innerHTML = html;
+
+      const grid = container.querySelector("#videoGrid");
+      function draw(filterTag) {
+        grid.innerHTML = "";
+        list.filter((v) => !filterTag || filterTag === "全部" || v.tag === filterTag).forEach((v) => {
+          const card = document.createElement("a");
+          card.className = "video-card";
+          card.href = v.url;
+          card.target = "_blank";
+          card.rel = "noopener noreferrer";
+          card.innerHTML = `<div class="v-cover">${esc(v.emoji || "🎬")}</div>
+            <div class="v-body"><div class="v-title">${esc(v.title)}</div>
+            ${v.tag ? `<span class="v-tag">${esc(v.tag)}</span>` : ""}</div>`;
+          if (v._src === "extra") {
+            const del = document.createElement("button");
+            del.className = "v-del"; del.textContent = "✕"; del.title = "删除";
+            del.addEventListener("click", (e) => {
+              e.preventDefault(); e.stopPropagation();
+              const arr = loadExtra().filter((x) => !(x.title === v.title && x.url === v.url));
+              saveExtra(arr); render();
+            });
+            card.appendChild(del);
+          }
+          grid.appendChild(card);
+        });
+        if (!grid.children.length) grid.innerHTML = `<div style="color:#8a6a78;padding:20px">还没有视频，先在上面加一个吧～</div>`;
+      }
+      draw("全部");
+      container.querySelectorAll(".chip").forEach((c) => {
+        c.addEventListener("click", () => draw(c.textContent));
+      });
+
+      container.querySelector("#vAdd").addEventListener("click", () => {
+        const t = container.querySelector("#vTitle").value.trim();
+        const u = container.querySelector("#vUrl").value.trim();
+        const g = container.querySelector("#vTag").value.trim();
+        if (!t || !u) { window.App && window.App.toast("名称和链接都要填哦"); return; }
+        if (!/^https?:\/\//i.test(u)) { window.App && window.App.toast("链接要以 http/https 开头"); return; }
+        const arr = loadExtra(); arr.push({ title: t, url: u, tag: g, emoji: "🎬" }); saveExtra(arr);
+        window.App && window.App.toast("已添加：" + t + " 🎉");
+        render();
+      });
+    }
+    render();
+  }
+
   return {
     pinyin: pinyin, shizi: shizi, math: math, english: english, logic: logic,
     book: book, game: game, poetry: poetry, wordbank: wordbank, reward: reward,
     calendar: calendar, parent: parent, performance: performance, draw: draw,
-    timeclock: timeclock, whys: whys,
+    timeclock: timeclock, whys: whys, videos: videos,
     judgeLogic: judgeLogic,
     notifyBankChange: notifyBankChange
   };

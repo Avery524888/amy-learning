@@ -37,6 +37,7 @@
     { key: "whys",     name: "十万个为什么", emoji: "💡" },
     { key: "reward",   name: "奖励",     emoji: "🎁" },
     { key: "calendar", name: "日历打卡", emoji: "📅" },
+    { key: "videos",   name: "幼升小视频", emoji: "🎬" },
     { key: "parent",   name: "家长端",   emoji: "👨‍👩‍👧" }
   ];
 
@@ -60,7 +61,60 @@
   // 暴露给模块，便于词库删除后主动失效相关模块的缓存
   window.__moduleCache = moduleCache;
   window.__moduleScroll = moduleScroll;
+  // 幼升小视频：家长密码锁（密码 210125）。本会话解锁后不再重复验证。
+  let videosUnlocked = false;
+  const VIDEO_PWD = "210125";
+  function isVideoUnlocked() {
+    try { if (sessionStorage.getItem("amy_videos_unlocked")) return true; } catch (e) {}
+    return videosUnlocked;
+  }
+  function unlockVideos() {
+    videosUnlocked = true;
+    try { sessionStorage.setItem("amy_videos_unlocked", "1"); } catch (e) {}
+  }
+  function showVideoLock(onPass) {
+    if (document.getElementById("videoLockMask")) return;
+    const mask = document.createElement("div");
+    mask.id = "videoLockMask";
+    mask.className = "pwd-mask";
+    mask.innerHTML =
+      '<div class="pwd-box">' +
+        '<div class="pwd-emoji">🔒</div>' +
+        '<div class="pwd-title">家长验证</div>' +
+        '<div class="pwd-sub">请输入密码进入「幼升小视频」</div>' +
+        '<input class="pwd-input" type="password" placeholder="请输入密码" maxlength="12" autocomplete="off">' +
+        '<div class="pwd-err" hidden>密码错误，请重试</div>' +
+        '<div class="pwd-actions">' +
+          '<button class="pwd-cancel" type="button">取消</button>' +
+          '<button class="pwd-ok" type="button">进入</button>' +
+        '</div>' +
+      '</div>';
+    const input = mask.querySelector(".pwd-input");
+    const err = mask.querySelector(".pwd-err");
+    function tryPass() {
+      if (input.value === VIDEO_PWD) {
+        unlockVideos();
+        if (mask.parentNode) mask.parentNode.removeChild(mask);
+        onPass();
+      } else {
+        err.hidden = false;
+        input.value = "";
+        input.focus();
+      }
+    }
+    mask.querySelector(".pwd-ok").addEventListener("click", tryPass);
+    mask.querySelector(".pwd-cancel").addEventListener("click", function () { if (mask.parentNode) mask.parentNode.removeChild(mask); });
+    mask.addEventListener("click", function (e) { if (e.target === mask && mask.parentNode) mask.parentNode.removeChild(mask); });
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") tryPass(); });
+    document.body.appendChild(mask);
+    input.focus();
+  }
+
   function navigate(key) {
+    if (key === "videos" && !isVideoUnlocked()) {
+      showVideoLock(function () { navigate("videos"); });
+      return;
+    }
     const cat = CATS.find((c) => c.key === key);
     if (!cat) return;
     // 切换模块时，停止一切正在播放的声音
